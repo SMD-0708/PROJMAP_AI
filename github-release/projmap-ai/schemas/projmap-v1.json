@@ -1,0 +1,297 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://projmap.dev/schemas/projmap-v1.json",
+  "title": "ProjMap File Format",
+  "description": "ProjMap 项目认知脉络文件标准 v1.0",
+  "type": "object",
+  "required": ["version", "metadata", "nodes", "edges"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": ".projmap 文件格式版本",
+      "default": "1.0"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["project_name", "project_root", "created_at"],
+      "properties": {
+        "project_name": {
+          "type": "string",
+          "description": "项目名称"
+        },
+        "project_root": {
+          "type": "string",
+          "description": "项目根路径（绝对路径）"
+        },
+        "description": {
+          "type": "string",
+          "description": "项目描述"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "创建时间（ISO 8601格式）"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "最后更新时间（ISO 8601格式）"
+        },
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "生成器名称",
+              "default": "projmap-cli"
+            },
+            "version": {
+              "type": "string",
+              "description": "生成器版本"
+            }
+          }
+        },
+        "trust_level": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "信任梯度档位：1=纯本地, 2=骨架, 3=注释, 4=参数, 5=全量",
+          "default": 1
+        },
+        "llm_model": {
+          "type": "string",
+          "description": "使用的LLM模型（如 qwen-turbo），纯本地模式为null"
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "description": "项目节点列表",
+      "items": {
+        "$ref": "#/definitions/Node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "节点间关系边列表",
+      "items": {
+        "$ref": "#/definitions/Edge"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "description": "决策点记录列表",
+      "items": {
+        "$ref": "#/definitions/Decision"
+      }
+    },
+    "active_state": {
+      "type": "object",
+      "description": "活跃状态追踪",
+      "properties": {
+        "active_main": {
+          "type": "string",
+          "description": "当前主线节点ID"
+        },
+        "active_branches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "活跃分支节点ID列表"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "NodeStatus": {
+      "type": "string",
+      "enum": ["active_main", "active_branch", "dormant", "archived"],
+      "description": "节点状态：active_main=主线, active_branch=实验分支, dormant=休眠, archived=归档"
+    },
+    "NodeType": {
+      "type": "string",
+      "enum": ["file", "module", "package", "directory"],
+      "description": "节点类型"
+    },
+    "Node": {
+      "type": "object",
+      "required": ["id", "name", "file_path", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "节点唯一标识（建议使用文件路径的hash）"
+        },
+        "name": {
+          "type": "string",
+          "description": "任务名（LLM推断或用户自定义）"
+        },
+        "file_path": {
+          "type": "string",
+          "description": "文件相对路径（相对于项目根目录）"
+        },
+        "file_name": {
+          "type": "string",
+          "description": "文件名（用于显示）"
+        },
+        "type": {
+          "$ref": "#/definitions/NodeType",
+          "default": "file"
+        },
+        "status": {
+          "$ref": "#/definitions/NodeStatus"
+        },
+        "function_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "功能标签列表（LLM推断），如：['数据处理', '模型训练', '可视化']"
+        },
+        "description": {
+          "type": "string",
+          "description": "节点描述"
+        },
+        "is_entry": {
+          "type": "boolean",
+          "description": "是否为入口文件",
+          "default": false
+        },
+        "language": {
+          "type": "string",
+          "description": "编程语言，如 python, javascript"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "关联子文件/模块ID列表"
+        },
+        "exports": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "导出的函数/类名列表"
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "导入的模块列表"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "EdgeType": {
+      "type": "string",
+      "enum": ["imports", "calls", "reads", "writes", "depends_on", "contains"],
+      "description": "边类型：imports=导入, calls=调用, reads=读取, writes=写入, depends_on=依赖, contains=包含"
+    },
+    "Edge": {
+      "type": "object",
+      "required": ["id", "source", "target", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "边唯一标识"
+        },
+        "source": {
+          "type": "string",
+          "description": "源节点ID"
+        },
+        "target": {
+          "type": "string",
+          "description": "目标节点ID"
+        },
+        "type": {
+          "$ref": "#/definitions/EdgeType"
+        },
+        "description": {
+          "type": "string",
+          "description": "流向说明"
+        },
+        "decision_id": {
+          "type": "string",
+          "description": "关联的决策点ID"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "边权重（用于可视化布局）",
+          "default": 1
+        }
+      }
+    },
+    "DecisionType": {
+      "type": "string",
+      "enum": ["parameter", "architecture", "algorithm", "abandoned", "milestone", "failure"],
+      "description": "决策类型：parameter=参数选择, architecture=架构决策, algorithm=算法选择, abandoned=放弃方案, milestone=里程碑, failure=失败尝试"
+    },
+    "Decision": {
+      "type": "object",
+      "required": ["id", "node_id", "type", "content", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "决策点唯一标识"
+        },
+        "node_id": {
+          "type": "string",
+          "description": "关联节点ID"
+        },
+        "type": {
+          "$ref": "#/definitions/DecisionType"
+        },
+        "content": {
+          "type": "string",
+          "description": "决策内容描述"
+        },
+        "reason": {
+          "type": "string",
+          "description": "决策原因/理由"
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "备选方案名称"
+              },
+              "reason_rejected": {
+                "type": "string",
+                "description": "放弃原因"
+              }
+            }
+          },
+          "description": "备选方案列表"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "array", "object"]
+          },
+          "description": "参数记录（键值对）"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "决策时间"
+        }
+      }
+    }
+  }
+}

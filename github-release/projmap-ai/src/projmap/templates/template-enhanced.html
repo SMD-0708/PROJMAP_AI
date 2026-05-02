@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProjMap - 智能项目脉络图</title>
+    <script src="https://unpkg.com/@antv/g6@4.8.24/dist/g6.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: rgba(22, 33, 62, 0.95);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            color: #00d4ff;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+            font-size: 13px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary.active {
+            background: rgba(0, 212, 255, 0.3);
+            border: 1px solid #00d4ff;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .legend h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 15px 25px;
+            background: rgba(22, 33, 62, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            color: #00d4ff;
+        }
+        
+        .header-info {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #a0a0a0;
+        }
+        
+        .graph-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #graph {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(22, 33, 62, 0.95);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+        }
+        
+        .tooltip h4 {
+            color: #00d4ff;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .tooltip p {
+            font-size: 12px;
+            color: #a0a0a0;
+            margin-bottom: 5px;
+        }
+        
+        .zoom-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(0, 212, 255, 0.4);
+        }
+        
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(22, 33, 62, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 200px;
+        }
+        
+        .stats-panel h3 {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #a0a0a0;
+        }
+        
+        .stat-value {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        
+        .link-label {
+            font-size: 11px;
+            fill: #a0a0a0;
+        }
+        
+        @keyframes flowAnimation {
+            from {
+                stroke-dashoffset: 24;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        .flowing-edge {
+            animation: flowAnimation 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>脉络图控制</h2>
+            
+            <div class="control-group">
+                <label>布局策略</label>
+                <button class="btn btn-secondary active" data-layout="auto">自动选择</button>
+                <button class="btn btn-secondary" data-layout="hierarchical">层级树布局</button>
+                <button class="btn btn-secondary" data-layout="stage">阶段分区布局</button>
+                <button class="btn btn-secondary" data-layout="star">星型分组布局</button>
+                <button class="btn btn-secondary" data-layout="timeline">时间轴布局</button>
+            </div>
+            
+            <div class="control-group">
+                <label>显示选项</label>
+                <button class="btn btn-secondary" id="toggleLabels">显示连线标签</button>
+                <button class="btn btn-secondary" id="toggleAnimation">启用流动动画</button>
+                <button class="btn btn-secondary" id="toggleGroups">显示分组框</button>
+            </div>
+            
+            <div class="control-group">
+                <label>链路类型过滤</label>
+                <button class="btn btn-secondary active" data-link="all">全部显示</button>
+                <button class="btn btn-secondary" data-link="data_flow">数据流</button>
+                <button class="btn btn-secondary" data-link="control_flow">控制流</button>
+                <button class="btn btn-secondary" data-link="config_dependency">配置依赖</button>
+            </div>
+            
+            <div class="control-group">
+                <label>聚合级别</label>
+                <button class="btn btn-secondary" data-zoom="1.0">文件级</button>
+                <button class="btn btn-secondary" data-zoom="0.7">目录级</button>
+                <button class="btn btn-secondary" data-zoom="0.5">功能级</button>
+            </div>
+            
+            <div class="legend">
+                <h3>链路类型图例</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00d4ff;"></div>
+                    <span>数据流（文件读写）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff9500; border: 1px dashed #ff9500;"></div>
+                    <span>控制流（函数调用）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8e8e93;"></div>
+                    <span>配置依赖</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #34c759;"></div>
+                    <span>时序流</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #af52de;"></div>
+                    <span>继承关系</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="header">
+                <h1 id="projectTitle">ProjMap 脉络图</h1>
+                <div class="header-info">
+                    <span id="nodeCount">节点: 0</span>
+                    <span id="edgeCount">连线: 0</span>
+                    <span id="layoutType">布局: 自动</span>
+                </div>
+            </div>
+            
+            <div class="graph-container">
+                <div id="graph"></div>
+                
+                <div class="tooltip" id="tooltip"></div>
+                
+                <div class="stats-panel">
+                    <h3>项目统计</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">总文件数</span>
+                        <span class="stat-value" id="totalFiles">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">代码行数</span>
+                        <span class="stat-value" id="totalLines">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">依赖深度</span>
+                        <span class="stat-value" id="maxDepth">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">数据流</span>
+                        <span class="stat-value" id="dataFlowCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">控制流</span>
+                        <span class="stat-value" id="controlFlowCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button class="zoom-btn" id="zoomIn">+</button>
+                    <button class="zoom-btn" id="zoomOut">-</button>
+                    <button class="zoom-btn" id="fitView">⌂</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const PROJMAP_DATA = {{DATA_PLACEHOLDER}};
+        
+        const LINK_COLORS = {
+            data_flow: '#00d4ff',
+            control_flow: '#ff9500',
+            temporal_flow: '#34c759',
+            config_dependency: '#8e8e93',
+            inheritance: '#af52de',
+            logical_group: '#5856d6'
+        };
+        
+        const LINK_STYLES = {
+            data_flow: { lineDash: [], lineWidth: 2 },
+            control_flow: { lineDash: [5, 5], lineWidth: 1.5 },
+            temporal_flow: { lineDash: [3, 3], lineWidth: 1 },
+            config_dependency: { lineDash: [], lineWidth: 1 },
+            inheritance: { lineDash: [], lineWidth: 2, endArrow: { path: G6.Arrow.triangle(8, 10, 0), fill: '#af52de' } }
+        };
+        
+        let graph = null;
+        let showLabels = true;
+        let showAnimation = false;
+        let showGroups = true;
+        let currentLinkFilter = 'all';
+        let currentZoomLevel = 1.0;
+        
+        function initGraph() {
+            const container = document.getElementById('graph');
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            
+            const layoutConfig = getLayoutConfig(PROJMAP_DATA.config?.strategy || 'hybrid');
+            
+            graph = new G6.Graph({
+                container: 'graph',
+                width,
+                height,
+                layout: layoutConfig,
+                modes: {
+                    default: [
+                        'drag-canvas',
+                        'zoom-canvas',
+                        'drag-node',
+                        {
+                            type: 'tooltip',
+                            formatText: model => {
+                                return `<div class="tooltip-content">
+                                    <h4>${model.label || model.id}</h4>
+                                    <p>类型: ${model.nodeType || '文件'}</p>
+                                    ${model.fileCount ? `<p>包含文件: ${model.fileCount}</p>` : ''}
+                                    ${model.totalLines ? `<p>代码行数: ${model.totalLines}</p>` : ''}
+                                </div>`;
+                            },
+                            offset: 10
+                        }
+                    ]
+                },
+                defaultNode: {
+                    type: 'circle',
+                    size: [40, 40],
+                    style: {
+                        fill: '#1a1a2e',
+                        stroke: '#00d4ff',
+                        lineWidth: 2,
+                        shadowColor: 'rgba(0, 212, 255, 0.3)',
+                        shadowBlur: 10
+                    },
+                    labelCfg: {
+                        style: {
+                            fill: '#e0e0e0',
+                            fontSize: 12
+                        },
+                        position: 'bottom',
+                        offset: 5
+                    }
+                },
+                defaultEdge: {
+                    type: 'quadratic',
+                    style: {
+                        stroke: '#00d4ff',
+                        lineWidth: 2,
+                        endArrow: {
+                            path: G6.Arrow.triangle(6, 8, 0),
+                            fill: '#00d4ff'
+                        }
+                    },
+                    labelCfg: {
+                        autoRotate: true,
+                        style: {
+                            fill: '#a0a0a0',
+                            fontSize: 10,
+                            background: {
+                                fill: '#1a1a2e',
+                                padding: [2, 4, 2, 4],
+                                radius: 2
+                            }
+                        },
+                        refY: 5
+                    }
+                },
+                nodeStateStyles: {
+                    hover: {
+                        fill: '#16213e',
+                        stroke: '#00d4ff',
+                        lineWidth: 3,
+                        shadowBlur: 20
+                    },
+                    selected: {
+                        fill: '#0f3460',
+                        stroke: '#00d4ff',
+                        lineWidth: 3
+                    }
+                },
+                edgeStateStyles: {
+                    hover: {
+                        stroke: '#00d4ff',
+                        lineWidth: 3,
+                        shadowBlur: 10
+                    }
+                }
+            });
+            
+            const data = transformData(PROJMAP_DATA);
+            graph.data(data);
+            graph.render();
+            
+            updateStats(data);
+            bindEvents();
+            
+            window.addEventListener('resize', () => {
+                if (graph) {
+                    graph.changeSize(container.offsetWidth, container.offsetHeight);
+                }
+            });
+        }
+        
+        function getLayoutConfig(strategy) {
+            const layouts = {
+                hierarchical_tree: {
+                    type: 'dagre',
+                    direction: 'LR',
+                    nodeSpacing: 50,
+                    rankSpacing: 100
+                },
+                stage_partition: {
+                    type: 'dagre',
+                    direction: 'LR',
+                    nodeSpacing: 60,
+                    rankSpacing: 150,
+                    sortByCombo: true
+                },
+                star_grouped: {
+                    type: 'radial',
+                    unitRadius: 100,
+                    preventOverlap: true
+                },
+                timeline: {
+                    type: 'dagre',
+                    direction: 'LR',
+                    nodeSpacing: 80,
+                    rankSpacing: 120
+                },
+                hybrid: {
+                    type: 'force',
+                    preventOverlap: true,
+                    nodeSpacing: 50,
+                    linkDistance: 150
+                }
+            };
+            
+            return layouts[strategy] || layouts.hybrid;
+        }
+        
+        function transformData(data) {
+            const nodes = (data.nodes || []).map(node => ({
+                id: node.id || node.node_id,
+                label: node.label || node.display_name || node.id,
+                nodeType: node.node_type || 'file',
+                fileCount: node.file_count || 1,
+                totalLines: node.total_lines || 0,
+                isCollapsed: node.is_collapsed,
+                x: node.x,
+                y: node.y,
+                comboId: node.stage || node.group_id,
+                style: getNodeStyle(node)
+            }));
+            
+            const edges = (data.links || data.edges || []).map((link, index) => ({
+                id: `edge-${index}`,
+                source: link.source,
+                target: link.target,
+                label: showLabels ? link.label : '',
+                linkType: link.link_type,
+                weight: link.weight || 1,
+                style: getEdgeStyle(link),
+                labelCfg: {
+                    autoRotate: true,
+                    style: {
+                        fill: '#a0a0a0',
+                        fontSize: 10
+                    }
+                }
+            }));
+            
+            const combos = (data.groups || []).map(group => ({
+                id: group.group_id,
+                label: group.group_name,
+                style: {
+                    fill: 'rgba(0, 212, 255, 0.05)',
+                    stroke: 'rgba(0, 212, 255, 0.3)',
+                    lineWidth: 1,
+                    lineDash: [5, 5]
+                }
+            }));
+            
+            return { nodes, edges, combos };
+        }
+        
+        function getNodeStyle(node) {
+            const typeStyles = {
+                directory: {
+                    fill: '#1a3a5c',
+                    stroke: '#00d4ff',
+                    lineWidth: 2,
+                    size: [50, 50]
+                },
+                file: {
+                    fill: '#1a1a2e',
+                    stroke: '#00d4ff',
+                    lineWidth: 2,
+                    size: [35, 35]
+                },
+                functional_group: {
+                    fill: '#2a1a3e',
+                    stroke: '#af52de',
+                    lineWidth: 2,
+                    size: [45, 45]
+                }
+            };
+            
+            return typeStyles[node.node_type] || typeStyles.file;
+        }
+        
+        function getEdgeStyle(link) {
+            const linkType = link.link_type || 'data_flow';
+            const color = LINK_COLORS[linkType] || '#00d4ff';
+            const style = LINK_STYLES[linkType] || {};
+            
+            return {
+                stroke: color,
+                lineWidth: (link.weight || 1) * (style.lineWidth || 2),
+                lineDash: style.lineDash || [],
+                endArrow: style.endArrow || {
+                    path: G6.Arrow.triangle(6, 8, 0),
+                    fill: color
+                },
+                shadowColor: color,
+                shadowBlur: 5
+            };
+        }
+        
+        function updateStats(data) {
+            document.getElementById('nodeCount').textContent = `节点: ${data.nodes.length}`;
+            document.getElementById('edgeCount').textContent = `连线: ${data.edges.length}`;
+            
+            if (PROJMAP_DATA.statistics) {
+                const stats = PROJMAP_DATA.statistics;
+                document.getElementById('totalFiles').textContent = stats.total_files || data.nodes.length;
+                document.getElementById('totalLines').textContent = stats.total_lines || 0;
+                document.getElementById('maxDepth').textContent = stats.max_depth || 0;
+                
+                const byType = stats.by_type || {};
+                document.getElementById('dataFlowCount').textContent = byType.data_flow || 0;
+                document.getElementById('controlFlowCount').textContent = byType.control_flow || 0;
+            }
+            
+            const strategy = PROJMAP_DATA.config?.strategy || 'hybrid';
+            const strategyNames = {
+                hierarchical_tree: '层级树',
+                stage_partition: '阶段分区',
+                star_grouped: '星型分组',
+                timeline: '时间轴',
+                hybrid: '混合'
+            };
+            document.getElementById('layoutType').textContent = `布局: ${strategyNames[strategy] || '自动'}`;
+        }
+        
+        function bindEvents() {
+            document.querySelectorAll('[data-layout]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('[data-layout]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const layout = this.dataset.layout;
+                    if (layout !== 'auto') {
+                        const layoutConfig = getLayoutConfig(layout);
+                        graph.updateLayout(layoutConfig);
+                    }
+                });
+            });
+            
+            document.querySelectorAll('[data-link]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('[data-link]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    currentLinkFilter = this.dataset.link;
+                    filterEdges();
+                });
+            });
+            
+            document.querySelectorAll('[data-zoom]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('[data-zoom]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    currentZoomLevel = parseFloat(this.dataset.zoom);
+                    updateAggregation();
+                });
+            });
+            
+            document.getElementById('toggleLabels').addEventListener('click', function() {
+                showLabels = !showLabels;
+                this.classList.toggle('active', showLabels);
+                updateEdgeLabels();
+            });
+            
+            document.getElementById('toggleAnimation').addEventListener('click', function() {
+                showAnimation = !showAnimation;
+                this.classList.toggle('active', showAnimation);
+                toggleEdgeAnimation();
+            });
+            
+            document.getElementById('toggleGroups').addEventListener('click', function() {
+                showGroups = !showGroups;
+                this.classList.toggle('active', showGroups);
+            });
+            
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                const zoom = graph.getZoom();
+                graph.zoomTo(zoom * 1.2);
+            });
+            
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                const zoom = graph.getZoom();
+                graph.zoomTo(zoom / 1.2);
+            });
+            
+            document.getElementById('fitView').addEventListener('click', () => {
+                graph.fitView(20);
+            });
+            
+            graph.on('node:dblclick', evt => {
+                const model = evt.item.getModel();
+                if (model.isCollapsed) {
+                    expandNode(model.id);
+                }
+            });
+            
+            graph.on('node:contextmenu', evt => {
+                evt.preventDefault();
+                const model = evt.item.getModel();
+                copyToClipboard(model.id);
+            });
+        }
+        
+        function filterEdges() {
+            graph.getEdges().forEach(edge => {
+                const model = edge.getModel();
+                if (currentLinkFilter === 'all' || model.linkType === currentLinkFilter) {
+                    graph.showItem(edge);
+                } else {
+                    graph.hideItem(edge);
+                }
+            });
+        }
+        
+        function updateEdgeLabels() {
+            graph.getEdges().forEach(edge => {
+                const model = edge.getModel();
+                graph.updateItem(edge, {
+                    label: showLabels ? model.label : ''
+                });
+            });
+        }
+        
+        function toggleEdgeAnimation() {
+            graph.getEdges().forEach(edge => {
+                const model = edge.getModel();
+                if (showAnimation && model.linkType === 'data_flow') {
+                    graph.updateItem(edge, {
+                        style: {
+                            ...model.style,
+                            lineDash: [10, 5],
+                            animate: true
+                        }
+                    });
+                } else {
+                    graph.updateItem(edge, {
+                        style: {
+                            ...model.style,
+                            animate: false
+                        }
+                    });
+                }
+            });
+        }
+        
+        function updateAggregation() {
+            console.log('Updating aggregation level:', currentZoomLevel);
+        }
+        
+        function expandNode(nodeId) {
+            console.log('Expanding node:', nodeId);
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`已复制: ${text}`);
+            });
+        }
+        
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 212, 255, 0.9);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                z-index: 10000;
+                animation: fadeIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 2000);
+        }
+        
+        document.addEventListener('DOMContentLoaded', initGraph);
+    </script>
+</body>
+</html>
